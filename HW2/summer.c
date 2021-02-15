@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -310,6 +309,10 @@ void* soloist(void* arg){
   return NULL;
 }
 
+// TODO add a counter to force fairness
+// TODO put all threads on one condition variable and use broadcast
+// TODO pass an id number of each thread
+
 int main(void){
   FILE* seedFile = fopen("seed.txt", "r");
   int seed;
@@ -352,8 +355,7 @@ int main(void){
 
   // Spin
   while(1){
-    int ret = pthread_yield();
-    assert(ret == 0);
+    pause();
   }
 
   return 0;

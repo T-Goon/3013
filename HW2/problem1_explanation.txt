@@ -1,0 +1,33 @@
+The threads avoid starvation by:
+
+1. Limiting the number of consecutive performers of a single type that can
+enter the stage.
+
+One type of performer can only fill the stage one time before picking a new type
+of performer to perform.
+
+For dancers and jugglers the max is 4.
+For soloists the max is 1.
+
+Dancers can only pick jugglers and soloists.
+Jugglers can only pick dancers and soloists.
+Soloists can only pick dancers and jugglers.
+
+2. Weighting the random pick of the new performer type based on how many there are
+in each group.
+
+There are 15 dancers so they can fill the stage ~4 times.
+There are 8 jugglers so they can fill the stage 2 times.
+There are 2 soloists so they can fill the stage 2 times.
+
+Therefore, the dancer performer type will perform roughly twice as many times
+as jugglers and soloists.
+
+Dancers pick jugglers and soloists with and equal chance.
+Jugglers pick dancers with twice the probability of soloists.
+Soloists pick dancers with twice the probability of jugglers.
+
+3. Each type of performer type only has to sleep for 3 performances before they
+are guaranteed to be picked to perform.
+
+This is done with a counter each time a performer type fills the stage.

@@ -359,22 +359,20 @@ int check_cycle(int matrix[NUM_STATIONS][NUM_STATIONS],
   }
 
   // Check all connections in the 'end' row
-  int flag = 0;
   for(int i=0; i<NUM_STATIONS; i++){
 
     if(end != i){
       if(matrix[end][i] > 0){
-        flag = 1;
-        return check_cycle(matrix, visited, count, end, i);
+        if(check_cycle(matrix, visited, count, end, i) == 0){
+          return 0;
+        }
       }
     }
 
   }
 
   // No connections out of 'end' row, no cycle
-  if(flag == 0){
-    return 1;
-  }
+  return 1;
 }
 
 // Check if a new set of instructions would end in deadlock.

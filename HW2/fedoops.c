@@ -66,13 +66,15 @@ struct pkgQueueNode* head = NULL;
 
 sem_t matrix_lock;
 int station_matrix[NUM_STATIONS][NUM_STATIONS];
-
 sem_t counter_lock;
-int num_since_red = 0;
-int num_since_blue = 0;
-int num_since_green = 0;
-int num_since_yellow = 0;
+int rc = 0;
+int bc = 0;
+int gc = 0;
+int yc = 0;
 
+// Return the worker type as a string
+// param c: The color of the worker
+// return: The sting cooresponding to the worker type.
 char* get_type_string(enum color c){
   switch (c) {
     case RED:
@@ -86,6 +88,9 @@ char* get_type_string(enum color c){
   }
 }
 
+// Return the package instruction as a string
+// param i: The instruction enum.
+// return: The string cooresponding to the instruction.
 char* get_instruction_string(enum instr i){
   switch (i) {
     case WEIGH:
@@ -99,6 +104,10 @@ char* get_instruction_string(enum instr i){
   }
 }
 
+// Return the station type based on the instruction
+// param i: The instruction enum
+// return: The string cooresponding to the station that the instruction is to be
+// carried out at.
 char* get_station_string(enum instr i){
   switch (i) {
     case WEIGH:
@@ -112,6 +121,10 @@ char* get_station_string(enum instr i){
   }
 }
 
+// Print out information when a worker gets a package.
+// param id: The id of the worker.
+// param type: The color of the worker.
+// param pkg: The package that the worker just picked up.
 void shout_package(int id, enum color type, struct package* pkg){
   char* color = get_type_string(type);
 
@@ -119,6 +132,7 @@ void shout_package(int id, enum color type, struct package* pkg){
 
   struct instrNode* node = pkg->instrListHead;
 
+  // Print out all instructions on the package
   while(node != NULL){
     char* instruction = get_instruction_string(node->instruction);
 
@@ -130,6 +144,11 @@ void shout_package(int id, enum color type, struct package* pkg){
   printf("\n");
 }
 
+// Print out information when the worker starts working at a station.
+// param id: The id of the worker.
+// param type: The color of the worker.
+// param pkg: The package that the worker is working on.
+// param instr: The instruction that the worker is currently executing.
 void shout_start(int id, enum color type, struct package* pkg, enum instr instr) {
   char* color = get_type_string(type);
 
@@ -139,6 +158,11 @@ void shout_start(int id, enum color type, struct package* pkg, enum instr instr)
   color, id, pkg->id, instruction);
 }
 
+// Print out information when the worker finishes working at a station.
+// param id: The id of the worker.
+// param type: The color of the worker.
+// param pkg: The package the worker is currently working on.
+// param instr: The instruction the worker just finished.
 void shout_end(int id, enum color type, struct package* pkg, enum instr instr){
   char* color = get_type_string(type);
 
@@ -148,6 +172,8 @@ void shout_end(int id, enum color type, struct package* pkg, enum instr instr){
   color, id, pkg->id, instruction);
 }
 
+// Down the semaphore that cooresponds to a certian team.
+// param c: The color of the team.
 void get_team_lock(enum color c){
   // Get the lock for the team
   switch (c) {
@@ -166,6 +192,8 @@ void get_team_lock(enum color c){
   }
 }
 
+// Up the semaphore that cooresponds to a team.
+// param c: The color of the team.
 void release_team_lock(enum color c){
   // Release the team lock
   switch (c) {
@@ -184,6 +212,8 @@ void release_team_lock(enum color c){
   }
 }
 
+// Up the semaphore that cooresponds to a work station.
+// param instruction: The instuction that needs to be carried out at the station.
 void get_station_lock(enum instr instruction){
   switch (instruction) {
     case WEIGH:
@@ -201,6 +231,8 @@ void get_station_lock(enum instr instruction){
   }
 }
 
+// Up the semaphore that cooresponds to a work station.
+// param instruction: The instuction that needs to be carried out at the station.
 void release_station_lock(enum instr instruction){
   switch (instruction) {
     case WEIGH:
@@ -218,75 +250,77 @@ void release_station_lock(enum instr instruction){
   }
 }
 
-void update_counters(enum color type){
-  sem_wait(&counter_lock);
-  switch (type) {
-    case RED:
-      num_since_red ++;
-      num_since_blue = 0;
-      num_since_green = 0;
-      num_since_yellow = 0;
-      break;
-    case BLUE:
-      num_since_red = 0;
-      num_since_blue ++;
-      num_since_green = 0;
-      num_since_yellow = 0;
-      break;
-    case GREEN:
-      num_since_red = 0;
-      num_since_blue = 0;
-      num_since_green ++;
-      num_since_yellow = 0;
-      break;
-    case YELLOW:
-      num_since_red = 0;
-      num_since_blue = 0;
-      num_since_green = 0;
-      num_since_yellow ++;
-      break;
-  }
-
-  sem_post(&counter_lock);
-}
-
+// Check the counters to prevent starvation of threads.
+// para type: The type of thread that wants to get a package.
+// return: 0 - Another type of thread is starving, 1 - No threads are starving.
 int check_counter(enum color type){
   sem_wait(&counter_lock);
+  // Find max counter that is over MAX_WAIT
+  int max = 0;
+  enum color y = -1;
+  if(rc > max && rc >= MAX_WAIT){
+    max = rc;
+    y = RED;
+  }
+  if(bc > max && bc >= MAX_WAIT){
+    max = bc;
+    y = BLUE;
+  }
+  if(gc > max && gc >= MAX_WAIT){
+    max = gc;
+    y = GREEN;
+  }
+  if(yc > max && yc >= MAX_WAIT){
+    max = yc;
+    y = YELLOW;
+  }
+  sem_post(&counter_lock);
 
-  switch (type) {
-    case RED:
-      if(num_since_red >= MAX_WAIT){
-        sem_post(&counter_lock);
-        pthread_yield();
-      return 0;
-      }
-    case BLUE:
-    if(num_since_blue >= MAX_WAIT){
-      sem_post(&counter_lock);
-      pthread_yield();
-      return 0;
-      }
-    case GREEN:
-    if(num_since_green >= MAX_WAIT){
-      sem_post(&counter_lock);
-      pthread_yield();
-      return 0;
-      }
-    case YELLOW:
-    if(num_since_yellow >= MAX_WAIT){
-      sem_post(&counter_lock);
-      pthread_yield();
-      return 0;
-      }
-    default:
-      sem_post(&counter_lock);
-      return 1;
+  // All threads trying to get a new package yield to that thread
+  if(y != -1 && type != y){
+    return 0;
   }
 
-  sem_post(&counter_lock);
   return 1;
 }
 
+// Add to a counter to guage starvation.
+// para type: The type of thread just got a package.
+void add_counter(enum color type){
+  sem_wait(&counter_lock);
+  switch (type) {
+    case RED:
+      rc = 0;
+      bc += 1;
+      gc += 1;
+      yc += 1;
+      break;
+    case BLUE:
+      rc += 1;
+      bc = 0;
+      gc += 1;
+      yc += 1;
+      break;
+    case GREEN:
+      rc += 1;
+      bc += 1;
+      gc = 0;
+      yc += 1;
+      break;
+    case YELLOW:
+      rc += 1;
+      bc += 1;
+      gc += 1;
+      yc = 0;
+      break;
+  }
+
+  sem_post(&counter_lock);
+}
+
+// Remove a connection from the adjacency matrix.
+// param old: The source node in the graph.
+// param new: The destination node in the graph.
 void remove_from_matrix(int old, int new){
   // Remove a finished connection from the matrix
   sem_wait(&matrix_lock);
@@ -296,11 +330,14 @@ void remove_from_matrix(int old, int new){
   sem_post(&matrix_lock);
 }
 
-/*
-  Checks for a cycle in the graph recursively.
 
-  return: 0 if there is a cycle, 1 if there is no cycle
-*/
+// Checks for a cycle in the graph recursively.
+// param matrix: The adjacency matrix to look for cycles in.
+// param visited: The nodes that were alread visisted.
+// param count: Number of nodes visited.
+// param start: Source node of the first connection to look at.
+// param end: Destination node of the first connection.
+// return: 0 if there is a cycle, 1 if there is no cycle
 int check_cycle(int matrix[NUM_STATIONS][NUM_STATIONS],
    int visited[NUM_STATIONS], int count, int start, int end){
 
@@ -335,11 +372,14 @@ int check_cycle(int matrix[NUM_STATIONS][NUM_STATIONS],
   }
 
   // No connections out of 'end' row, no cycle
-  if(!flag){
+  if(flag == 0){
     return 1;
   }
 }
 
+// Check if a new set of instructions would end in deadlock.
+// param node: Head node of linked list of instructions.
+// return: 0 - There is a cycle in the graph, 1 - There is no cycles in the graph.
 int check_matrix(struct instrNode* node){
   // Get the matrix lock
   sem_wait(&matrix_lock);
@@ -352,15 +392,7 @@ int check_matrix(struct instrNode* node){
     }
   }
 
-  // printf("copy\n");
-  // for(int i=0; i<NUM_STATIONS; i++){
-  //   for(int j=0; j<NUM_STATIONS; j++){
-  //     printf("%d ", copy[i][j]);
-  //   }
-  //   printf("\n");
-  // }
 
-  // Add the new connections to the copy
   struct instrNode* curNode = node;
 
   // Only one instruction no fear of deadlock
@@ -369,6 +401,7 @@ int check_matrix(struct instrNode* node){
     return 1;
   }
 
+  // Add the new connections to the copy
   struct instrNode* nextNode = curNode->next;
   while(nextNode != NULL){
     copy[curNode->instruction][nextNode->instruction] += 1;
@@ -376,14 +409,6 @@ int check_matrix(struct instrNode* node){
     curNode = nextNode;
     nextNode = curNode->next;
   }
-
-  // printf("copy\n");
-  // for(int i=0; i<NUM_STATIONS; i++){
-  //   for(int j=0; j<NUM_STATIONS; j++){
-  //     printf("%d ", copy[i][j]);
-  //   }
-  //   printf("\n");
-  // }
 
   // Check for cyles
   for(int i=0; i<NUM_STATIONS; i++){
@@ -393,22 +418,23 @@ int check_matrix(struct instrNode* node){
       int visited[NUM_STATIONS] = {-1, -1, -1, -1};
       if(i != j){ // From station to itself
 
-        int found;
-        if(copy[i][j] > 0)
+        int found = -1;
+        if(copy[i][j] > 0){
           found = check_cycle(copy, visited, counter, i, j);
+        }
 
         if(found == 0){
           // Found a cycle
           sem_post(&matrix_lock);
           return 0;
         }
-
       }
+
     }
   }
 
   // There are no cycles
-  // Set the matrix as the new matrix
+  // Set the adjacency matrix as the new matrix
   for(int i=0; i<NUM_STATIONS; i++){
     for(int j=0; j<NUM_STATIONS; j++){
       station_matrix[i][j] = copy[i][j];
@@ -420,6 +446,9 @@ int check_matrix(struct instrNode* node){
   return 1;
 }
 
+// The worker thread.
+// param args: Struct of workerArgs.
+// return: NULL
 void* worker(void* args){
   int id = ((struct workerArgs*)args)->id;
   enum color type = ((struct workerArgs*)args)->c;
@@ -428,12 +457,22 @@ void* worker(void* args){
     // Try to get the team lock
     get_team_lock(type);
 
-    sleep(1);
+    int c = 0;
+    while(1){
+      c = check_counter(type);
+      sem_wait(&pkg_q_lock);
+      if(c == 1 || head == NULL){
+        sem_post(&pkg_q_lock);
+        break;
+      }
+      sem_post(&pkg_q_lock);
+      pthread_yield();
+    }
+
 
     // Lock queue
     sem_wait(&pkg_q_lock);
     if(head == NULL){
-
       // Unlock queue
       sem_post(&pkg_q_lock);
       release_team_lock(type);
@@ -446,6 +485,8 @@ void* worker(void* args){
 
     // Unlock queue
     sem_post(&pkg_q_lock);
+
+    add_counter(type);
 
     // unpack the package
     struct package* my_package = pkg_node->pkg;
@@ -473,7 +514,7 @@ void* worker(void* args){
 
       shout_start(id, type, my_package, old_instruction);
 
-      // Work for [1,5] seconds
+      // Work for [1,3] seconds
       int time = (rand() % 3) + 1;
       printf("[%s #%d] Working for %d seconds.\n", get_type_string(type), id, time);
       sleep(time);
@@ -484,15 +525,19 @@ void* worker(void* args){
       curInstr = curInstr->next;
       free(oldInstr);
 
+      // There are no more instructions to process
       if(curInstr == NULL){
         release_station_lock(old_instruction);
         break;
       }
+
+      // Get the next instruction
       new_instruction = curInstr->instruction;
 
+      // Move the package to the next station.
       get_station_lock(new_instruction);
-      remove_from_matrix(old_instruction, new_instruction);
       release_station_lock(old_instruction);
+      remove_from_matrix(old_instruction, new_instruction);
 
       old_instruction = new_instruction;
     }
@@ -510,6 +555,8 @@ void* worker(void* args){
   return NULL;
 }
 
+// Fill a package with instructions.
+// param pkg: Pointer to the package to fill.
 void fillPkg(struct package* pkg){
   int num_instr = (rand() % 4) + 1;
   int list[] = {1,2,3,4};
@@ -517,6 +564,7 @@ void fillPkg(struct package* pkg){
   struct instrNode* head = NULL;
   struct instrNode* tail = NULL;
 
+  // Put in random number of [1,4] instructions
   for(int i=0; i<num_instr; i++){
     int index = (rand() % numLeft);
     enum instr instrEnum = -1;
@@ -546,6 +594,7 @@ void fillPkg(struct package* pkg){
 
     // Add instruction to list
     if(head == NULL && tail == NULL){
+      // List is empty
       struct instrNode* nextNode = malloc(sizeof(struct instrNode));
       nextNode->instruction = instrEnum;
       nextNode->next = NULL;
@@ -554,6 +603,7 @@ void fillPkg(struct package* pkg){
       tail = nextNode;
 
     } else{
+      // List is not empty
       struct instrNode* nextNode = malloc(sizeof(struct instrNode));
       nextNode->instruction = instrEnum;
 
@@ -567,12 +617,17 @@ void fillPkg(struct package* pkg){
   pkg->instrListHead = head;
 }
 
+// Create worker threads for each team.
+// param ids: Array of ids for the threads.
+// param type: The color of the team.
+// param threads: Array to hold the pthread_t structs after creation.
 void create_worker(int ids[TEAM_SIZE], enum color type, pthread_t threads[TEAM_SIZE]){
 
   for(int i=0; i<TEAM_SIZE; i++){
     pthread_t thread;
     ids[i] = i;
 
+    // Fill struct for thread args.
     struct workerArgs* arg = malloc(sizeof(struct workerArgs));
     arg->id = ids[i];
     arg->c = type;
@@ -583,11 +638,14 @@ void create_worker(int ids[TEAM_SIZE], enum color type, pthread_t threads[TEAM_S
 }
 
 int main(void){
+  // Seed the random number genrator.
   FILE* seed_file = fopen("seed.txt", "r");
   int seed = -1;
   fscanf(seed_file, "%d", &seed);
 
   srand(seed);
+
+  fclose(seed_file);
 
   // Init semaphores
   sem_init(&pkg_q_lock, 0, 1);
@@ -605,11 +663,7 @@ int main(void){
   // Init the adjacency matrix
   for(int i=0; i<NUM_STATIONS; i++){
     for(int j=0; j<NUM_STATIONS; j++){
-      if(i == j){
-        station_matrix[i][j] = 1;
-      } else {
-        station_matrix[i][j] = 0;
-      }
+      station_matrix[i][j] = 0;
     }
   }
 
@@ -617,11 +671,13 @@ int main(void){
   struct pkgQueueNode* tail = NULL;
   for(int i=0; i<NUM_PACKAGES; i++){
     if(head == NULL && tail == NULL){
+      // The queue is empty
       struct package* pkg = malloc(sizeof(struct package));
       // Fill packge with instructions
       fillPkg(pkg);
       pkg->id = i;
 
+      // Create new queue node.
       struct pkgQueueNode* nextQNode = malloc(sizeof(struct pkgQueueNode));
       nextQNode->pkg = pkg;
       nextQNode->next = NULL;
@@ -629,6 +685,7 @@ int main(void){
       head = nextQNode;
       tail = nextQNode;
     } else{
+      // The queue is not empty
       struct package* pkg = malloc(sizeof(struct package));
       // Fill packge with instructions
       fillPkg(pkg);
@@ -659,6 +716,7 @@ int main(void){
   pthread_t yellow_threads[TEAM_SIZE];
   create_worker(yellow_ids, YELLOW, yellow_threads);
 
+  // Wait for all the workers to finish processing packages before terminating.
   for(int i=0; i<TEAM_SIZE; i++){
     pthread_join(red_threads[i], NULL);
     pthread_join(blue_threads[i], NULL);
@@ -667,28 +725,6 @@ int main(void){
   }
 
   printf("All the packages have been processed~.\n");
-
-  // // Print out the package queue
-  // struct pkgQueueNode* curNode = head;
-  // for(int i=0; i<NUM_PACKAGES; i++){
-  //
-  //
-  //   printf("Pkg ID: %d, Instr: ", curNode->pkg->id);
-  //   struct instrNode* curInstr = curNode->pkg->instrListHead;
-  //   while(1){
-  //     printf("%d ", curInstr->instruction);
-  //
-  //     if(curInstr->next == NULL){
-  //       break;
-  //     } else{
-  //       curInstr = curInstr->next;
-  //     }
-  //   }
-  //
-  //   curNode = curNode->next;
-  //
-  //   printf("\n");
-  // }
 
   return 0;
 }

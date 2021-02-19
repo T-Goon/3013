@@ -1,0 +1,47 @@
+Packages:
+The queue of packages is represented by a linked list.
+The packages hold an id and a linked list of instructions.
+The program limits the package queue to a size of 20.
+
+Movement:
+Any thread that is working must acquire the semaphore lock of the work station they
+need their package to go to in addition to the lock of the station they are currently at
+before they can start working on the next instruction.
+
+Teams:
+Each team only has a semaphore lock that is initialized to 1.
+Only one team member holds this semaphore at one time.
+When a team member is finished with a packages they yield so that another
+thread on the team can get the semaphore.
+
+Fairness:
+The program maintains counters for the number of packages that other teams
+have picked up since the last time any one team got a package.
+Example:
+Teams red, blue, and green pick up packages.
+The counter for yellow is now 3.
+
+When one or more counters for a team reach or exceed 3, all other teams will yield
+for the team with the max counter value.
+
+Deadlock:
+The program avoids deadlock by first constructing an adjacency matrix for a
+directed graph that represents future movements of packages that have already
+been put onto a work station.
+
+When trying to start work on a package the package's requirements will be added
+to the matrix. Then the program checks for any cycles in the directed graph.
+
+If there are any cycles, the changes to the adjacency matrix are discarded and
+the thread with the package continually yields and rechecks the matrix until it
+is able to proceed.
+
+If there are no cycles in the graph then the changes to the matrix are kept and
+the thread can ask for the semaphore lock on a work station.
+
+After any instruction for a package has been completed the corresponding connection
+in the graph is removed.
+
+Concurrency:
+Using the technique described to avoid deadlock and maintain fairness
+the maximum amount of concurrency is achieved at any point in the program's execution.

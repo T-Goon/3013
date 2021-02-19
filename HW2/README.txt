@@ -6,6 +6,8 @@ Compilation:
     Compile both problem 1 and 2.
   "make summer":
     Compile problem 1.
+  "make fedoops"
+    Compile problem 2.
 
 Usage:
   problem 1:
@@ -15,3 +17,9 @@ Usage:
     The program will run forever until it receives a SIGINT or a SIGKILL.
     Use the "kill" command or ctrl+c to trigger the program's signal handler and
     terminate the program.
+
+  problem 2:
+    Do "./fedoops" in a terminal.
+    Make sure the "seed.txt" file is in the same directory as the executable.
+
+    The program will terminate after processing 20 packages.

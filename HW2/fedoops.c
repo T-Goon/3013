@@ -516,7 +516,7 @@ void* worker(void* args){
 
       // Work for [1,3] seconds
       int time = (rand() % 3) + 1;
-      printf("[%s #%d] Working for %d seconds.\n", get_type_string(type), id, time);
+      printf("[%s #%d]: Working for %d seconds.\n", get_type_string(type), id, time);
       sleep(time);
 
       shout_end(id, type, my_package, old_instruction);

@@ -14,19 +14,16 @@ void* _arena_start = NULL;
 size_t _size = 0;
 int statusno = 0;
 struct __node_t* head = NULL;
-/*
-node is 32 bytes
-*/
 
 int init(size_t size){
-  int check = (int)size;
   size_t page_size = getpagesize();
 
   printf("Initializing arena:\n");
-  printf("...requested size %ld bytes\n", size);
+  printf("...requested size %lu bytes\n", size);
 
   // Make sure input is not negative
-  if(check < 0){
+  if(size > MAX_ARENA_SIZE){
+    printf("...error: requested size larger then MAX_ARENA_SIZE (%d)\n", MAX_ARENA_SIZE);
     return ERR_BAD_ARGUMENTS;
   }
 
@@ -35,6 +32,7 @@ int init(size_t size){
   printf("...pagesize is %ld bytes\n", page_size);
   size_t actual_size = ((size + page_size - 1)/page_size) * page_size;
   if(actual_size != size){
+    printf("...adjusting size with page boundaries\n");
     printf("...adjusted size is %ld bytes\n", actual_size);
   }
 
@@ -81,12 +79,16 @@ int init(size_t size){
 }
 
 int destroy(){
+  printf("Destroying Arena:\n");
 
   if(_arena_start == NULL){
+    printf("...error: cannot destroy unintialized area. Setting error status\n");
+    statusno = ERR_UNINITIALIZED;
     return ERR_UNINITIALIZED;
   }
 
-  printf("Destroying Arena:\n");
+
+  printf("...unmapping arena with munmap()\n");
 
   int ret = munmap(_arena_start, _size);
   if(ret < 0){
@@ -105,6 +107,7 @@ int destroy(){
 void* walloc(size_t size){
   // Check arena is initialized
   if(_arena_start == NULL){
+    printf("...Error: Unitialized. Setting status code\n");
     statusno = ERR_UNINITIALIZED;
     return NULL;
   }
@@ -131,6 +134,8 @@ void* walloc(size_t size){
 
     // End of list no more free space
     if(cur_node == NULL){
+      printf("...no such free chunk exists\n");
+      printf("...setting error code\n");
       statusno = ERR_OUT_OF_MEMORY;
       return NULL;
     }
@@ -142,9 +147,11 @@ void* walloc(size_t size){
   printf("...checking of splitting is required\n");
   // if there is space for a new header
   if(cur_node->size-size >= sizeof(struct __node_t)){
+    printf("...splitting free chunk\n");
+
     // Embed new header
     struct __node_t* new_header;
-    new_header = cur_node + sizeof(struct __node_t) + size;
+    new_header = ((void*)cur_node) + sizeof(struct __node_t) + size;
     new_header->is_free = 1;
     new_header->size = cur_node->size - size - sizeof(struct __node_t);
     new_header->fwd = cur_node->fwd;
@@ -156,15 +163,26 @@ void* walloc(size_t size){
     }
 
     cur_node->fwd = new_header;
-  } else{
+
+    printf("...updating chunk header at %p\n", cur_node);
+
+    // Allocate the memory
+    cur_node->is_free = 0;
+    cur_node->size = size;
+
+  } else if(cur_node->size == size){
     printf("...splitting not required\n");
+    printf("...updating chunk header at %p\n", cur_node);
+
+    // Allocate the memory
+    cur_node->is_free = 0;
+  } else{
+    printf("...splitting not possible\n");
+    printf("...updating chunk header at %p\n", cur_node);
+
+    // Allocate the memory
+    cur_node->is_free = 0;
   }
-
-  printf("...updating chunk header at %p\n", cur_node);
-
-  // Allocate the memory
-  cur_node->is_free = 0;
-  cur_node->size = size;
 
   printf("...being carful with my pointer arithmetic and void pointer casting\n");
   printf("...allocation starts at %p\n", cur_node+sizeof(struct __node_t));
@@ -193,7 +211,9 @@ void wfree(void *ptr){
 
     // next node
     struct __node_t* next = header->fwd;
-    next->fwd->bwd = header;
+    if(next->fwd != NULL){
+      next->fwd->bwd = header;
+    }
     header->fwd = next->fwd;
 
     header->size += sizeof(struct __node_t) + next->size;
@@ -201,35 +221,37 @@ void wfree(void *ptr){
     // prev node
     struct __node_t* prev = header->bwd;
     prev->fwd = header->fwd;
+    if(header->fwd != NULL){
+      header->fwd->bwd = prev;
+    }
 
-    prev->size = sizeof(struct __node_t) + header->size;
+    prev->size += sizeof(struct __node_t) + header->size;
 
     header = prev;
-  }
-
-  if(header->fwd != NULL && header->fwd->is_free == 1){
+  }else if(header->fwd != NULL && header->fwd->is_free == 1){
     // coalesce with next node
     printf("...col. case 3: current and next chunks free.\n");
     struct __node_t* next = header->fwd;
-    next->fwd->bwd = header;
+    if(next->fwd != NULL){
+      next->fwd->bwd = header;
+    }
     header->fwd = next->fwd;
 
     header->size += sizeof(struct __node_t) + next->size;
-  }
 
-  if(header->bwd != NULL && header->bwd->is_free == 1){
+  } else if(header->bwd != NULL && header->bwd->is_free == 1){
     // coalesce with previous node
     printf("...col. case 2: previous and current chunks free.\n");
     struct __node_t* prev = header->bwd;
     prev->fwd = header->fwd;
 
-    prev->size = sizeof(struct __node_t) + header->size;
+    prev->size += sizeof(struct __node_t) + header->size;
+    if(header->fwd != NULL){
+      header->fwd->bwd = prev;
+    }
 
     header = prev;
+  } else{
+    printf("...coalescing not needed.\n");
   }
-
-  printf("Header->size %ld\n", header->size);
-  printf("Header->fwd %p\n", header->fwd);
-  printf("Header->bwd %p\n", header->bwd);
-  printf("Header->isf_free %d\n", header->is_free);
 }

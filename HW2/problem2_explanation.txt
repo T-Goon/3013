@@ -8,6 +8,9 @@ Any thread that is working must acquire the semaphore lock of the work station t
 need their package to go to in addition to the lock of the station they are currently at
 before they can start working on the next instruction.
 
+There is also a semaphore that is acquired before moving a package to any station
+which ensures that only one package can move at a time.
+
 Teams:
 Each team only has a semaphore lock that is initialized to 1.
 Only one team member holds this semaphore at one time.
@@ -45,3 +48,7 @@ in the graph is removed.
 Concurrency:
 Using the technique described to avoid deadlock and maintain fairness
 the maximum amount of concurrency is achieved at any point in the program's execution.
+
+The only mechanism that limits concurrency is the part of the project spec that
+requires that only one package may move at at time.
+I want to remove it but I can't........

@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <unistd.h>
+#include <errno.h>
 
 #define NUM_PACKAGES 20
 #define MAX_INSTR 4
@@ -64,6 +65,7 @@ sem_t green_sem;
 
 struct pkgQueueNode* head = NULL;
 
+sem_t move_lock;
 sem_t matrix_lock;
 int station_matrix[NUM_STATIONS][NUM_STATIONS];
 sem_t counter_lock;
@@ -214,20 +216,41 @@ void release_team_lock(enum color c){
 
 // Up the semaphore that cooresponds to a work station.
 // param instruction: The instuction that needs to be carried out at the station.
-void get_station_lock(enum instr instruction){
+int get_station_lock(enum instr instruction){
+  int ret = -1;
   switch (instruction) {
     case WEIGH:
-      sem_wait(&scale_lock);
-      break;
+      ret = sem_trywait(&scale_lock);
+      if(ret == EAGAIN){
+        sem_post(&move_lock);
+      } else if(ret == 0 ){
+        return 1;
+      }
+      return 0;
     case BARCODE:
-      sem_wait(&barcoder_lock);
-      break;
+      ret = sem_trywait(&barcoder_lock);
+      if(ret == EAGAIN){
+        sem_post(&move_lock);
+      } else if(ret == 0 ){
+        return 1;
+      }
+      return 0;
     case XRAY:
-      sem_wait(&xray_lock);
-      break;
+      ret = sem_trywait(&xray_lock);
+      if(ret == EAGAIN){
+        sem_post(&move_lock);
+      } else if(ret == 0 ){
+        return 1;
+      }
+      return 0;
     case JOSTLE:
-      sem_wait(&shaker_lock);
-      break;
+      ret = sem_trywait(&shaker_lock);
+      if(ret == EAGAIN){
+        sem_post(&move_lock);
+      } else if(ret == 0 ){
+        return 1;
+      }
+      return 0;
   }
 }
 
@@ -507,7 +530,18 @@ void* worker(void* args){
     enum instr old_instruction  = curInstr->instruction;
     enum instr new_instruction;
     struct instrNode* oldInstr;
-    get_station_lock(old_instruction);
+
+    // Put package on the first station
+    int m1 = 0;
+    while(1){
+      sem_wait(&move_lock);
+      m1 = get_station_lock(old_instruction);
+      sem_post(&move_lock);
+      if(m1 == 1){
+        break;
+      }
+    }
+
     while(1){
 
       shout_start(id, type, my_package, old_instruction);
@@ -533,7 +567,15 @@ void* worker(void* args){
       new_instruction = curInstr->instruction;
 
       // Move the package to the next station.
-      get_station_lock(new_instruction);
+      int m2 = -1;
+      while(1){
+        sem_wait(&move_lock);
+        m2 = get_station_lock(new_instruction);
+        sem_post(&move_lock);
+        if(m2 == 1){
+          break;
+        }
+      }
       release_station_lock(old_instruction);
       remove_from_matrix(old_instruction, new_instruction);
 
@@ -657,6 +699,7 @@ int main(void){
   sem_init(&yellow_sem, 0, 1);
   sem_init(&matrix_lock, 0, 1);
   sem_init(&counter_lock, 0, 1);
+  sem_init(&move_lock, 0, 1);
 
   // Init the adjacency matrix
   for(int i=0; i<NUM_STATIONS; i++){

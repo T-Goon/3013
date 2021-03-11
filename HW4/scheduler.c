@@ -331,7 +331,7 @@ int main(int argc, char **argv){
   // print out metrics
   printf("Begin analyzing %s:\n", argv[1]);
   while(mhead != NULL){
-    printf("Job %d -- Response time: %d Turnaround: %d Wait: %d\n",
+    printf("Job %d -- Response time: %d  Turnaround: %d  Wait: %d\n",
     mhead->id, mhead->rt, mhead->tt, mhead->wt);
 
     sum_rt += mhead->rt;
@@ -344,10 +344,10 @@ int main(int argc, char **argv){
     free(temp);
   }
 
-  printf("Average -- Response time: %.02f Turnaround: %.02f Wait: %.02f\n",
+  printf("Average -- Response: %.02f  Turnaround %.02f  Wait %.02f\n",
   sum_rt/count, sum_tt/count, sum_wt/count);
 
-  printf("End of analyzing %s.\n", argv[1]);
+  printf("End analyzing %s.\n", argv[1]);
 
   return 0;
 }

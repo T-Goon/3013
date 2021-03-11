@@ -7,6 +7,7 @@ struct job{
   int id;
   int length;
   int time_left;
+  int time_stopped;
 
   struct job* next;
 };
@@ -24,6 +25,12 @@ struct metric{
 struct metric* mhead = NULL;
 struct metric* mtail = NULL;
 
+/**
+* Add a new task metric to the list.
+* PARAM id: id of the task.
+* PARAM time: start time of the task.
+* PARAM len: Time after start the task takes to finish.
+*/
 void add_metric(int id, int time, int len){
   if(mhead == NULL && mtail == NULL){
     // empty
@@ -47,6 +54,66 @@ void add_metric(int id, int time, int len){
     mtail->next = nm;
     mtail = nm;
   }
+}
+
+/**
+* Sets a metric's turnaround time.
+* PARAM id: id of the task
+* PARAM tt: Turnaround time to set
+*/
+void update_tt(int id, int tt){
+  struct metric* cur = mhead;
+
+  // Find the correct node
+  while(cur != NULL){
+    if(cur->id == id){
+      break;
+    }
+
+    cur = cur->next;
+  }
+
+  // Set the turnaround time
+  cur->tt = tt;
+}
+
+/**
+* Adds to a metric's wait time.
+* PARAM id: id of the task
+* PARAM time: Time to add to the wait time.
+*/
+void add_wait(int id, int time){
+  struct metric* cur = mhead;
+
+  // Find the correct node
+  while(cur != NULL){
+    if(cur->id == id){
+      break;
+    }
+
+    cur = cur->next;
+  }
+
+  cur->wt += time;
+}
+
+/**
+* Checks if a task is in the metrics list.
+* PARAM id: id number of the task
+* RETURN: 1 if id is in metrics list and 0 otherwise
+*/
+int in_metrics(int id){
+  struct metric* cur = mhead;
+
+  while(cur != NULL){
+    if(cur->id == id){
+      return 1;
+    }
+
+    cur = cur->next;
+  }
+
+  return 0;
 }
 
 int main(int argc, char **argv){
@@ -87,6 +154,7 @@ int main(int argc, char **argv){
       head->id = IDcounter;
       head->length = len;
       head->time_left = len;
+      head->time_stopped = 0;
       head->next = NULL;
 
       tail = head;
@@ -97,6 +165,7 @@ int main(int argc, char **argv){
       nj->id = IDcounter;
       nj->length = len;
       nj->time_left = len;
+      nj->time_stopped = 0;
       nj->next = NULL;
 
       tail->next = nj;
@@ -186,6 +255,7 @@ int main(int argc, char **argv){
     }
 
     printf("End of execution with SJF.\n");
+
   } else if(strcmp(argv[1], "RR") == 0){
     printf("Execution trace with RR:\n");
 
@@ -196,12 +266,25 @@ int main(int argc, char **argv){
       return 3;
     }
 
+    int start_time = 0;
+
     // Do all jobs
     while(head != NULL){
       if(head->length > time){
         head->length -= time;
 
         printf("Job %d ran for: %d\n", head->id, time);
+
+        // Check in metrics list
+        if(in_metrics(head->id) == 1){
+          add_wait(head->id, start_time - head->time_stopped);
+        } else{
+          add_metric(head->id, start_time, 0);
+        }
+
+        head->time_stopped = start_time + time;
+        start_time += time;
+
 
         // Move to end of list
         struct job* temp = head;
@@ -218,6 +301,16 @@ int main(int argc, char **argv){
         struct job* temp = head;
 
         printf("Job %d ran for: %d\n", head->id, head->length);
+
+        // Check in metrics list
+        if(in_metrics(head->id) == 1){
+          add_wait(head->id, start_time - head->time_stopped);
+          update_tt(head->id, start_time + head->length);
+        } else{
+          add_metric(head->id, start_time, head->length);
+        }
+
+        start_time += head->length;
 
         head = head->next;
         free(temp);

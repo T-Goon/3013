@@ -6,7 +6,6 @@
 struct job{
   int id;
   int length;
-  int time_left;
   int time_stopped;
 
   struct job* next;
@@ -153,7 +152,6 @@ int main(int argc, char **argv){
       head = malloc(sizeof(struct job));
       head->id = IDcounter;
       head->length = len;
-      head->time_left = len;
       head->time_stopped = 0;
       head->next = NULL;
 
@@ -164,7 +162,6 @@ int main(int argc, char **argv){
       struct job* nj = malloc(sizeof(struct job));
       nj->id = IDcounter;
       nj->length = len;
-      nj->time_left = len;
       nj->time_stopped = 0;
       nj->next = NULL;
 
@@ -177,13 +174,6 @@ int main(int argc, char **argv){
   }
 
   fclose(f);
-
-  // struct job* cur = head;
-  // while(cur != NULL){
-  //   printf("%d %d\n", cur->id, cur->length);
-  //
-  //   cur = cur->next;
-  // }
 
   if(strcmp(argv[1], "FIFO") == 0){
     printf("Execution trace with FIFO:\n");
@@ -287,7 +277,6 @@ int main(int argc, char **argv){
 
 
         // Move to end of list
-        struct job* temp = head;
         tail->next = head;
 
         tail = tail->next;

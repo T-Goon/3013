@@ -1,8 +1,8 @@
 all: scheduler.c
 	make scheduler
-	
+
 scheduler: scheduler.c
-	gcc -o scheduler scheduler.c
-	
-clean: 
+	gcc -o scheduler scheduler.c -Wall -Werror
+
+clean:
 	rm -f scheduler

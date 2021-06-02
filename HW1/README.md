@@ -106,21 +106,25 @@ To compile slugrace.c run
 `make slugrace`
 
 ### To run:
-  prolific-
-    `./prolific`
-  generation-
-    `./generation`
-  explorer-
-    `./explorer`
-  slug-
-    Put a "seed.txt" file into the same directory as slug.
-    Make sure it contains only a single integer.
-    `./slug [1|2|3|4]`
-  slugrace-
-    Put a "seed_slug_1.txt", "seed_slug_2.txt", "seed_slug_3.txt", and 
-    "seed_slug_4.txt" file into the same directory as slugrace.
-    Make sure they all only contain a single integer.
-    `./slugrace`
+
+#### prolific
+`./prolific`
+
+#### generation
+`./generation`
+#### explorer
+`./explorer`
+
+#### slug
+Put a "seed.txt" file into the same directory as slug.
+Make sure it contains only a single integer.
+`./slug [1|2|3|4]`
+
+### slugrace
+Put a "seed_slug_1.txt", "seed_slug_2.txt", "seed_slug_3.txt", and 
+"seed_slug_4.txt" file into the same directory as slugrace.
+Make sure they all only contain a single integer.
+`./slugrace`
 
 ## Data structures and Algorithms:
 

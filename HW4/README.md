@@ -24,6 +24,7 @@ into the same directory.
 
 ### Run
 `./scheduler [FIFO | SJF | RR] <path_to_job_trace> <time_slice>`
+
 Job trace is a file similar to the workload_#.in files. Time slice is only used in round robin scheduling to specify the length of each round robin time slice.
 
 #### Tests

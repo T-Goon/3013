@@ -47,6 +47,8 @@ Those are:
 - X-raying
 - Jostling
 
+The code for this program can be found in "fedoops.c".
+
 4 teams of threads are created with 10 threads belonging to each team. The teams are red, blue, green, and yellow.
 
 The goal is to use synchronization primitives to maximize concurrency and avoid deadlock in the program.
@@ -94,3 +96,8 @@ Do `./fedoops` in a terminal.
 Make sure the "seed.txt" file is in the same directory as the executable.
 
 The program will terminate after processing 20 packages.
+
+## Other Files
+
+### seed.txt
+File containing a seed number for the random number generator used in the programs.

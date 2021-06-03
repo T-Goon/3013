@@ -53,7 +53,8 @@ The code for this program can be found in "fedoops.c".
 
 The goal is to use synchronization primitives to maximize concurrency and avoid deadlock in the program.
 
-A diagram of the simulated environment is shown below
+A diagram of the simulated environment is shown below.
+
 ![image](https://user-images.githubusercontent.com/32044950/120705799-43f93780-c486-11eb-8b9d-f0638febcad7.png)
 
 The rules of the simulated environment are:
